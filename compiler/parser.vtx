@@ -1,0 +1,330 @@
+
+import [Token] : "lexer"
+
+type Parser = (file_path, tokens) => {
+
+    var index = 0
+    var token = copy(tokens[0])
+
+    const error = (message, token = token) => {
+        println(f"Error: ${file_path} [Line ${token.line}, Col ${token.col}]: ${message}")
+        exit(1)
+    }
+
+    const advance = () => {
+        index += 1
+        token = copy(tokens[index])
+    }
+
+    const next = () => {
+        return tokens[index+1]
+    }
+
+    const prev = () => {
+        return tokens[index-1]
+    }
+
+    const remove_left = () => {
+        tokens.remove(index-1)
+        index -= 1
+    }
+
+    const remove_right = () => {
+        tokens.remove(index+1)
+    }
+
+    const remove_curr = () => {
+        tokens.remove(index)
+        token = copy(tokens[index])
+    }
+
+    const parse_bin_op = () => {
+        if (token.left != None or token.right != None) {
+            return
+        }
+
+        token.left = prev()
+        token.right = next()
+        if (token.left == None or token.right == None) {
+            error(f"Malformed operator '${token.value}'", token)
+        }
+        if (token.value == "=") {
+            if (token.left.value == ":") {
+                token.left.left._type = token.left.right
+                token.left = token.left.left
+            }
+
+            if (token.left.type != "Id") {
+                error(f"Malformed operator '${token.value}'", token.left)
+            }
+        }
+        remove_left()
+        remove_right()
+        tokens[index] = token
+    }
+
+    const parse_const = () => {
+        if (next().value != "=") {
+            error("Const expects a value", token)
+        }
+        token.type = "ConstDeclaration"
+        token.value = next()
+        token.name = token.value.left.value
+        if (token.value.right.type == "Function") {
+            token.value.right._name = token.name
+        }
+        tokens[index] = token
+        remove_right()
+    }
+
+    const parse_var = () => {
+        token.type = "VariableDeclaration"
+        token.value = next()
+        token.name = token.value.left.value
+        if (token.value.right.type == "Function") {
+            token.value.right._name = token.name
+        }
+        tokens[index] = token
+        remove_right()
+    }
+
+    const parse_type = () => {
+        token.type = "TypeDeclaration"
+        token.value = next()
+        token.name = token.value.left.value
+        tokens[index] = token
+        remove_right()
+    }
+
+    const parse_comma = () => {
+        if (token.left != None or token.right != None) {
+            return
+        }
+
+        var _prev = prev()
+        var _next = next()
+
+        if (_prev.value == "[" or _prev.value == "(" or _prev.value == "{") {
+            remove_curr()
+            return
+        }
+
+        if (_next.value == "]" or _next.value == ")" or _next.value == "}") {
+            remove_curr()
+            return
+        }
+
+        token.left = _prev
+        token.right = _next
+        if (token.left == None or token.right == None) {
+            error(f"Malformed operator '${token.value}'", token)
+        }
+        remove_left()
+        remove_right()
+        tokens[index] = token
+    }
+
+    const flatten_commas = (comma) => {
+        if (comma.type != "Op" or comma.value != ",") {
+            return [comma]
+        }
+        var list = []
+        if (comma.left.value == ",") {
+            var ls = flatten_commas(comma.left)
+            for (ls, i, v) {
+                list.append(v)
+            }
+        } else {
+            list.append(comma.left)
+        }
+
+        if (comma.right.value == ",") {
+            var ls = flatten_commas(comma.right)
+            for (ls, i, v) {
+                list.append(v)
+            }
+        } else {
+            list.append(comma.right)
+        }
+
+        return list
+    }
+
+    const parse_lambda = () => {
+        token.type = "Function"
+        token.value = next()
+        var params = prev()
+        if (params.value == ":") {
+            token._return_type = params.right
+            params = params.left
+        }
+        if (params.type != "Paren") {
+            error("Malformed lambda", token)
+        }
+
+        if (params.value == None) {
+            token.params = []
+        } else {
+            token.params = params.value.flatten_commas()
+        }
+
+        for (token.params, i, param) {
+            var default = None
+            if (param.value == "=") {
+                default = param.right
+                param = param.left
+            }
+            if (param.value == ":") {
+                param.left._type = param.right
+                param = param.left
+            }
+
+            if (default != None) {
+                param._default = default
+            }
+
+            token.params[i] = param
+        }
+        remove_left()
+        remove_right()
+        tokens[index] = token
+    }
+
+    const parse_function_call = () => {
+        var func_call_token = Token("FunctionCall")
+        func_call_token.function = prev()
+        var args = token
+        if (args.type != "Paren") {
+            error("Malformed function call")
+        }
+        if (args.value == None) {
+            args = []
+        } else {
+            args = args.value.flatten_commas()
+        }
+
+        func_call_token.args = args
+        remove_left()
+        tokens[index] = func_call_token
+    }
+
+    const parse_accessor = () => {
+        var accessor_token = Token("Accessor")
+        var accessor = token
+        if (accessor.value.length() != 1) {
+            error("Accessor must contain one element")
+        }
+        accessor_token.index = accessor.value[0]
+        accessor_token.value = prev()
+        remove_left()
+        tokens[index] = accessor_token
+    }
+
+    const parse_loop = (parse_function, predicate, end_token_value = None) => {
+        if (end_token_value == None) {
+            while (index < tokens.length()) {
+                if (predicate()) {
+                    parse_function()
+                }
+                advance()
+            }
+        } else {
+            while (token.value != end_token_value) {
+                if (predicate()) {
+                    parse_function()
+                }
+                advance()
+            }
+        }
+    }
+
+    const reset = (start_index) => {
+        index = start_index
+        token = copy(tokens[index])
+    }
+
+    const parse = (start_index = 0, end_token_value = None) => {
+        const parse_paren = () => {
+            remove_curr() // (
+            if (token.type == "Op" and token.value == ")") {
+                tokens[index] = Token("Paren", None)
+                return
+            }
+            parse(index, ")")
+            remove_right() // (
+            var paren = Token("Paren", token)
+            tokens[index] = paren
+        }
+
+        const parse_list = () => {
+            remove_curr() // [
+            if (token.type == "Op" and token.value == "]") {
+                tokens[index] = Token("List", [])
+                return
+            }
+            parse(index, "]")
+            remove_right() // ]
+            var list = Token("List", flatten_commas(token))
+            tokens[index] = list
+        }
+
+        const parse_object = () => {
+            remove_curr() // {
+            if (token.type == "Op" and token.value == "}") {
+                tokens[index] = Token("Object", {})
+                return
+            }
+            parse(index, "}")
+            remove_right() // }
+            const elements = flatten_commas(token)
+            var obj = {}
+            for (elements, i, element) {
+                obj[string(element.left.value)] = element.right
+            }
+            var object = Token("Object", obj)
+            tokens[index] = object
+        }
+
+        parse_loop(() => parse_paren(), () => token.value == "(", end_token_value)
+        reset(start_index)
+        parse_loop(() => parse_list(), () => token.value == "[", end_token_value)
+        reset(start_index)
+        parse_loop(() => parse_object(), () => token.value == "{", end_token_value)
+        reset(start_index)
+        parse_loop(() => parse_bin_op(), () => token.value == ".", end_token_value)
+        reset(start_index)
+        parse_loop(() => parse_bin_op(), () => token.value == "..", end_token_value)
+        reset(start_index)
+        parse_loop(() => parse_accessor(), () => token.type == "List" and (prev().value == "." or prev().type == "List" or prev().type == "Accessor" or prev().type == "Id" or prev().type == "Paren"), end_token_value)
+        reset(start_index)
+        parse_loop(() => parse_function_call(), () => token.type == "Paren" and (prev().value == "." or prev().type == "List" or prev().type == "Accessor" or prev().type == "Id" or prev().type == "Paren" or prev().type == "Function"), end_token_value)
+        reset(start_index)
+        parse_loop(() => parse_bin_op(), () => token.value == "*" or token.value == "/", end_token_value)
+        reset(start_index)
+        parse_loop(() => parse_bin_op(), () => token.value == "+" or token.value == "-", end_token_value)
+        reset(start_index)
+        parse_loop(() => parse_bin_op(), () => token.value == "|", end_token_value)
+        reset(start_index)
+        parse_loop(() => parse_bin_op(), () => token.value == "or" or token.value == "and", end_token_value)
+        reset(start_index)
+        parse_loop(() => parse_bin_op(), () => token.value == ":", end_token_value)
+        reset(start_index)
+        parse_loop(() => parse_lambda(), () => token.value == "=>", end_token_value)
+        reset(start_index)
+        parse_loop(() => parse_bin_op(), () => token.value == "=", end_token_value)
+        reset(start_index)
+        parse_loop(() => parse_const(), () => token.value == "const", end_token_value)
+        reset(start_index)
+        parse_loop(() => parse_var(), () => token.value == "var", end_token_value)
+        reset(start_index)
+        parse_loop(() => parse_type(), () => token.value == "type", end_token_value)
+        reset(start_index)
+        parse_loop(() => parse_comma(), () => token.value == ",", end_token_value)
+        reset(start_index)
+    }
+
+    return {
+        parse: parse,
+        tokens: tokens
+    }
+}

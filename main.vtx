@@ -1,0 +1,17 @@
+import [Lexer] : "compiler/lexer"
+import [Parser] : "compiler/parser"
+import [Evaluator] : "compiler/evaluator"
+import [] : functional
+import json
+import io
+
+const lexer = Lexer("source.vtx")
+lexer.tokenize()
+const parser = Parser(lexer.file_path, lexer.tokens)
+parser.parse()
+io.writef("log.json", json.serialize(parser.tokens))
+
+const evaluator = Evaluator(parser.file_path, parser.tokens)
+evaluator.evaluate()
+
+// parser.tokens.forEach((token) => println(token))

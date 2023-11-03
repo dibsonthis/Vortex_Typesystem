@@ -1,0 +1,70 @@
+[
+    {
+        "type": "ConstDeclaration",
+        "value": {
+            "left": {
+                "type": "Id",
+                "line": 1,
+                "col": 7,
+                "value": "x",
+                "_type": {
+                    "type": "Id",
+                    "line": 1,
+                    "col": 10,
+                    "value": "Number"
+                }
+            },
+            "right": {
+                "type": "Number",
+                "line": 1,
+                "col": 19,
+                "value": 10.6
+            }
+        },
+        "name": "x"
+    },
+    {
+        "type": "ConstDeclaration",
+        "value": {
+            "left": {
+                "type": "Id",
+                "line": 2,
+                "col": 7,
+                "value": "y",
+                "_type": {
+                    "type": "Id",
+                    "line": 2,
+                    "col": 10,
+                    "value": "String"
+                }
+            },
+            "right": {
+                "type": "Boolean",
+                "line": 2,
+                "col": 19,
+                "value": true
+            }
+        },
+        "name": "y"
+    },
+    {
+        "type": "FunctionCall",
+        "line": 1,
+        "col": 1,
+        "function": {
+            "type": "Id",
+            "line": 3,
+            "col": 1,
+            "value": "println"
+        },
+        "args": [
+            {}
+        ]
+    },
+    {
+        "type": "Op",
+        "line": 3,
+        "col": 10,
+        "value": ")"
+    }
+]

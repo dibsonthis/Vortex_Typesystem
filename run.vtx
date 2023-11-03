@@ -1,0 +1,11 @@
+import sys
+import json
+import io
+
+sys.system("vortex main.vtx")
+
+const status = json.parse(io.readf("status.json"))
+
+if (status.passed == true) {
+    sys.system("vortex source.vtx")
+}

@@ -1,0 +1,66 @@
+import json
+import io
+
+const NodeType = {
+    Id: "Id",
+    String: "String",
+    Number: "Number",
+    Boolean: "Boolean",
+    Object: "Object",
+    List: "List",
+    Function: "Function",
+    Op: "Op",
+    Pointer: "Pointer",
+    ConstDeclaration: "ConstDeclaration"
+}
+
+type Evaluator = (file_path, tokens) => {
+
+    const error = (message, token) => {
+        println(f"Error: ${file_path} [Line ${token.line}, Col ${token.col}]: ${message}")
+        exit(1)
+    }
+
+    const type_check = (_type, value) => {
+        if (_type == None) {
+            return false
+        }
+        if (_type.type == NodeType.Id) {
+            if (_type.value == NodeType.String) {
+                return value.type == NodeType.String
+            } else if (_type.value == NodeType.Number) {
+                return value.type == NodeType.Number
+            } else if (_type.value == NodeType.Boolean) {
+                return value.type == NodeType.Boolean
+            } else if (_type.value == NodeType.Pointer) {
+                return value.type == NodeType.Pointer
+            } else {
+                return false
+            }
+        }
+
+        return false
+    }
+
+    const evaluate = () => {
+        for (tokens, index, token) {
+            if (token.type == "ConstDeclaration") {
+                var id = token.value.left
+                var value = token.value.right
+                if (id._type != None) {
+                    const match = type_check(id._type, value)
+                    if (!match) {
+                        println(f"${id._type.value} != ${value.type}")
+                        io.writef("status.json", json.serialize({passed: false}))
+                        exit(1)
+                    }
+                }
+            }
+        }
+    }
+    
+    return {
+        tokens: tokens,
+        evaluate: evaluate
+    }
+}

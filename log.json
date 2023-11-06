@@ -1,7 +1,13 @@
 [
     {
         "type": "ConstDeclaration",
+        "line": 1,
+        "col": 1,
         "value": {
+            "type": "Op",
+            "line": 1,
+            "col": 17,
+            "value": "=",
             "left": {
                 "type": "Id",
                 "line": 1,
@@ -25,7 +31,13 @@
     },
     {
         "type": "ConstDeclaration",
+        "line": 2,
+        "col": 1,
         "value": {
+            "type": "Op",
+            "line": 2,
+            "col": 17,
+            "value": "=",
             "left": {
                 "type": "Id",
                 "line": 2,
@@ -39,10 +51,10 @@
                 }
             },
             "right": {
-                "type": "Boolean",
+                "type": "String",
                 "line": 2,
                 "col": 19,
-                "value": true
+                "value": "100"
             }
         },
         "name": "y"
@@ -58,13 +70,18 @@
             "value": "println"
         },
         "args": [
-            {}
+            {
+                "type": "Id",
+                "line": 3,
+                "col": 9,
+                "value": "x"
+            },
+            {
+                "type": "Id",
+                "line": 3,
+                "col": 12,
+                "value": "y"
+            }
         ]
-    },
-    {
-        "type": "Op",
-        "line": 3,
-        "col": 10,
-        "value": ")"
     }
 ]

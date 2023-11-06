@@ -194,7 +194,6 @@ type Parser = (file_path, tokens) => {
         var func_call_token = Token("FunctionCall")
         func_call_token.function = prev()
         var args = token
-        println(args.value)
         if (args.type != "Paren") {
             error("Malformed function call")
         }
